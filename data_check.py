@@ -335,7 +335,7 @@ class CSPProcess:
         self.week_number = param['week_number']
         # Path to Pregnancy, location of the source files
         self.preg_path = os.path.abspath(
-                os.path.join("//JTSRV2", "Data", "Customer Files",
+                os.path.join("//JTSRV4", "Data", "Customer Files",
                              "In Progress", "WM Pregnancy In-Sourcing")
         )
         #
@@ -482,7 +482,13 @@ def run_membership(param):
         with open(os.path.join(source_data.proc_dir, 'data check',
                                "{0}_DATA CHECK REPORT.txt".format(merge_data.current_processing_file[:-4])), 'w+') as s:
 
-            s.write("Comparing: {0} --> {1}".format(merge_data.current_processing_file, source_data.filename))
+            # s.write("Comparing: {0} --> {1}".format(merge_data.current_processing_file, source_data.filename))
+            s.write("Comparing: {2}\\{0} -->\n{4:>11}{3}\\{1}\n".format(merge_data.current_processing_file,
+                                                                        source_data.filename,
+                                                                        os.path.abspath(merge_data.proc_dir),
+                                                                        os.path.abspath(source_data.proc_dir),
+                                                                        " "))
+
             errors = 0
 
             with open(os.path.join(merge_data.proc_dir, merge_data.current_processing_file), 'r') as f:
@@ -528,7 +534,11 @@ def run_hcm(param):
                            "{0}_DATA CHECK REPORT.txt".format(hcm.merge_source_file[:-4])), 'w+') as s:
 
         # Compare merge file --> source file
-        s.write("Comparing: {0} --> {1}".format(hcm.merge_source_file, hcm.data_source_file))
+        s.write("Comparing: {2}\\{0} -->\n{4:>11}{3}\\{1}\n".format(hcm.merge_source_file,
+                                                                    hcm.data_source_file,
+                                                                    os.path.abspath(hcm.merge_source_dir),
+                                                                    os.path.abspath(hcm.data_source_dir),
+                                                                    " "))
         errors = 0
 
         with open(os.path.join(hcm.merge_source_dir, hcm.merge_source_file), 'r') as f:
@@ -563,10 +573,6 @@ def run_pregnancy(param):
     preg_merge = PregMerge(preg.merge_source_dir)
     preg.import_data()
 
-    # print(preg.__dict__)
-    # print(preg_merge.__dict__)
-    # return
-
     if not os.path.isdir(os.path.join(preg.merge_source_dir, 'data check')):
         os.mkdir(os.path.join(preg.merge_source_dir, 'data check'))
 
@@ -583,7 +589,11 @@ def run_pregnancy(param):
         with open(os.path.join(preg.merge_source_dir, 'data check',
                                "{0}_DATA CHECK REPORT.txt".format(preg_merge.current_processing_file[:-4])), 'w+') as s:
 
-            s.write("Comparing: {0} --> {1}".format(preg_merge.current_processing_file, preg.data_source_file))
+            s.write("Comparing: {2}\\{0} -->\n{4:>11}{3}\\{1}\n".format(preg_merge.current_processing_file,
+                                                                        preg.data_source_file,
+                                                                        os.path.abspath(preg_merge.proc_dir),
+                                                                        os.path.abspath(preg.merge_source_dir),
+                                                                        " "))
             errors = 0
 
             with open(os.path.join(preg.merge_source_dir, preg_merge.current_processing_file), 'r') as f:
@@ -636,7 +646,11 @@ def run_csp(param):
         with open(os.path.join(csp.merge_source_dir, 'data check',
                                "{0}_DATA CHECK REPORT.txt".format(csp_merge.current_processing_file[:-4])), 'w+') as s:
 
-            s.write("Comparing: {0} --> {1}".format(csp_merge.current_processing_file, csp.data_source_file))
+            s.write("Comparing: {2}\\{0} -->\n{4:>11}{3}\\{1}\n".format(csp_merge.current_processing_file,
+                                                                        csp.data_source_file,
+                                                                        os.path.abspath(csp_merge.proc_dir),
+                                                                        os.path.abspath(csp.merge_source_dir),
+                                                                        " "))
             errors = 0
 
             with open(os.path.join(csp.merge_source_dir, csp_merge.current_processing_file), 'r') as f:
@@ -685,43 +699,43 @@ def questions():
     # parameters = {'process': 3, 'week_number': 1}
 
     try:
-        ans = int(input("Processing job FB Membership (0), WM HCM (1), WM Pregnancy (2), CSP (3): "))
-        if ans not in [0, 1, 2, 3]:
+        qry = int(input("Processing job FB Membership (0), WM HCM (1), WM Pregnancy (2), CSP (3): "))
+        if qry not in [0, 1, 2, 3]:
             raise ValueError
         else:
-            parameters['process'] = ans
+            parameters['process'] = qry
 
         # FB Membership processing
-        if ans == 0:
-            ans = int(input("IA: First, Paid Welcome (0)\n"
-                            "SD: First, 2nd, Paid (0)\n"
-                            "UT: First, 2nd (0)\n"
-                            "NM: First, Paid (0)\n"
-                            "IA: 2nd (1)\n"
-                            "UT: Paid, Welcome (1)\n"
-                            "SD, NM: Welcome (1): "))
-            if ans not in [0, 1]:
+        if qry == 0:
+            fb_qry_1 = int(input("IA: First, Paid Welcome (0)\n"
+                                 "SD: First, 2nd, Paid (0)\n"
+                                 "UT: First, 2nd (0)\n"
+                                 "NM: First, Paid (0)\n"
+                                 "IA: 2nd (1)\n"
+                                 "UT: Paid, Welcome (1)\n"
+                                 "SD, NM: Welcome (1): "))
+            if fb_qry_1 not in [0, 1]:
                 raise ValueError
             else:
-                parameters['split'] = ans
+                parameters['split'] = fb_qry_1
 
-            ans = int(input("Job number: "))
-            parameters['job_number'] = ans
+            fb_qry_2 = int(input("Job number: "))
+            parameters['job_number'] = fb_qry_2
 
         # WM HCM processing
-        if ans == 1:
-            ans = int(input("Week # (numeric)? "))
-            parameters['week_number'] = ans
+        if qry == 1:
+            hcm_qry = int(input("Week # (numeric)? "))
+            parameters['week_number'] = hcm_qry
 
         # WM Pregnancy processing
-        if ans == 2:
-            ans = int(input("Week # (numeric)? "))
-            parameters['week_number'] = ans
+        if qry == 2:
+            preg_qry = int(input("Week # (numeric)? "))
+            parameters['week_number'] = preg_qry
 
         # CSP processing
-        if ans == 3:
-            ans = int(input("Week # (numeric)? "))
-            parameters['week_number'] = ans
+        if qry == 3:
+            csp_qry = int(input("Week # (numeric)? "))
+            parameters['week_number'] = csp_qry
 
     except ValueError:
         print("Invalid response, cancelling")
@@ -738,9 +752,9 @@ def questions():
         run_csp(parameters)
 
     print("Processing Completed for {0}".format(['FB Membership',
-                                                  'WM HCM',
-                                                  'WM Pregnancy',
-                                                  'CSP'][parameters['process']]))
+                                                 'WM HCM',
+                                                 'WM Pregnancy',
+                                                 'CSP'][parameters['process']]))
     time.sleep(2.5)
     os.remove('source_data.db')
     sys.exit()
