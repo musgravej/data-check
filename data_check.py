@@ -120,29 +120,23 @@ class MembershipMerge:
 
     def get_split_1_files(self):
         if self.process_state == 'IA':
-            print("split 1 for IA")
             srch = re.compile("[^(2nd)[\S\s]*.txt]|(1st)[\S\s]*.txt|(Paid)[\S\s]*.txt|(Welcome)[\S\s]*.txt")
             self.split_1_files = ([f for f in os.listdir(self.proc_dir) if srch.search(f)])
         elif self.process_state == 'UT':
-            print("split 1 for UT")
             srch = re.compile("[^(Welcome)[\S\s]*.txt]|[^(Paid)[\S\s]*.txt]|(1st)[\S\s]*.txt|(2nd)[\S\s]*.txt")
             self.split_1_files = ([f for f in os.listdir(self.proc_dir) if srch.search(f)])
         elif self.process_state in ['SD', 'NM']:
-            print("split 1 for other")
             srch = re.compile("[^(Welcome)[\S\s]*.txt]|(1st)[\S\s]*.txt|(Paid)[\S\s]*.txt|(2nd)[\S\s]*.txt")
             self.split_1_files = ([f for f in os.listdir(self.proc_dir) if srch.search(f)])
 
     def get_split_2_files(self):
         if self.process_state == 'IA':
-            print("split 2 for IA")
             srch = re.compile("(2nd)[\S\s]*.txt")
             self.split_2_files = ([f for f in os.listdir(self.proc_dir) if srch.search(f)])
         elif self.process_state == 'UT':
-            print("split 2 for UT")
             srch = re.compile("(Paid)[\S\s]*.txt|(Welcome)[\S\s]*.txt")
             self.split_2_files = ([f for f in os.listdir(self.proc_dir) if srch.search(f)])
         elif self.process_state in ['SD', 'NM']:
-            print("split 2 for other")
             srch = re.compile("(Welcome)[\S\s]*.txt")
             self.split_2_files = ([f for f in os.listdir(self.proc_dir) if srch.search(f)])
 
