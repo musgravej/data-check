@@ -32,7 +32,6 @@ class MembershipFields:
                       'holdertownship', 'holderemail', 'holderphone', 'holderbdate',
                       'holdergender', 'fbname', 'dues', 'expireplus1', 'notice']
         if version == 'UT':
-            # fields = ['account']
             fields = ['account', 'holderfname', 'holderlname', 'holderbname', 'street1',
                       'street2', 'city', 'state', 'postalcode', 'holderemail', 'sbdate',
                       'sgender', 'fbname', 'dues', 'expireplus1', 'notice', 'Beef',
@@ -757,8 +756,8 @@ def questions():
                                                  'WM Pregnancy',
                                                  'CSP'][parameters['process']]))
     time.sleep(2.5)
-    # os.remove('source_data.db')
-    # sys.exit()
+    os.remove('source_data.db')
+    sys.exit()
 
 
 if __name__ == '__main__':
