@@ -436,6 +436,105 @@ class CSPMerge:
         self.get_sample_records()
 
 
+class FBRProcess:
+    def __init__(self, param):
+        self.week_number = param['week_number']
+        self.data_source_dir = ''
+        self.merge_source_dir = ''
+        self.data_source_file = ''
+        self.merge_source_file = ''
+        self.compare_fields = ['First', 'Last', 'Add1', 'Add2', 'City',
+                               'St', 'Zip', 'AgentID', 'AgentFirst', 'AgentLast',
+                               'AgentOffice', 'AgentAdd1', 'AgentAdd2', 'AgentCity', 'AgentSt',
+                               'AgentZip']
+        self.sample_records = []
+        self.total_records = 0
+        self.sample_size = 0
+
+    def get_source_dirs(self):
+        date_dir = re.compile("([0-9])*-([0-9])*-([0-9])*")
+        proc_dir = [f for f in os.listdir(os.path.curdir) if date_dir.search(f)]
+
+        dated_folders = {}
+        for folder in proc_dir:
+            dated_folders[folder] = datetime.datetime.strptime(folder, "%m-%d-%y")
+
+        sorted_folders = sorted(dated_folders.items(), key=lambda kv: kv[1])
+
+        self.merge_source_dir = os.path.join(os.curdir, 'Week {0}'.format(self.week_number))
+        self.data_source_dir = os.path.join(os.curdir, sorted_folders[(self.week_number - 1)][0])
+
+    def get_source_files(self):
+        source_search = re.compile("FBLAssignments__[0-9]{8}")
+
+        try:
+            self.data_source_file = ([f for f in os.listdir(self.data_source_dir)
+                                      if source_search.search(f)])[0]
+            self.merge_source_file = ([f for f in os.listdir(self.merge_source_dir)
+                                      if str(f[-3:]).upper() == 'TXT'])[0]
+        except IndexError:
+            print('Error!! Source file not found')
+
+    def get_sample_size(self):
+        # Get total record count
+        with open(os.path.join(self.merge_source_dir, self.merge_source_file), 'r') as f:
+            self.total_records = (len(f.readlines())) - 1
+
+        # Get total sample size, either 25 or 1% of total, whichever is more
+        self.sample_size = (min(int(max(25.0, self.total_records * .01)),
+                                self.total_records))
+
+    def get_sample_records(self):
+        # Returns a list of records to be used as samples
+        self.sample_records = set(random.sample(range(1, self.total_records),
+                                                (self.sample_size - 1)))
+
+    def import_data(self):
+        fieldnames = ["_filedate", "ID",
+                      "_filestate1", "first",
+                      "last", "add2",
+                      "add1", "city",
+                      "st", "zip",
+                      "zip4", "_fld1", "billid",
+                      "_fld2", "agent2first",
+                      "agent2last", "agentid",
+                      "_fld3", "agentfirst",
+                      "agentlast", "agentoffice",
+                      "agentadd1", "agentadd2",
+                      "agentcity", "agentst",
+                      "agentzip", "agentzip4",
+                      "agentphone", "agentemail",
+                      "_fld4", "_fld5",
+                      "_fld6", "_fld7",
+                      "_fld8", "_fld9", "_fld10",
+                      "_fld11", "_fld12", "_fld13",
+                      "_fld14", "_fld15", "_fld16"]
+
+        db_fields = ' VARCHAR(100), '.join(fieldnames)
+
+        with open(os.path.join(self.data_source_dir, self.data_source_file), 'r') as s:
+            csvr = csv.reader(s, delimiter='|')
+
+            sqldb = sqlite3.connect('source_data.db')
+            c = sqldb.cursor()
+            c.execute("DROP TABLE IF EXISTS source_data;")
+            c.execute("VACUUM;")
+            c.execute("CREATE TABLE source_data ({0});".format(db_fields))
+
+            placeholders = ', '.join(['?'] * len(fieldnames))
+            fields = ', '.join(fieldnames)
+
+            for line in csvr:
+                sql = "INSERT INTO source_data ({0}) VALUES ({1});".format(fields, placeholders)
+                c.execute(sql, line)
+
+            c.execute("UPDATE source_data SET agentid = SUBSTR('00000'||agentid, -5);")
+            c.execute("UPDATE source_data SET zip = (zip||'-'||SUBSTR('0000'||zip4, 5)) WHERE TRIM(zip4) != '';")
+
+            sqldb.commit()
+            sqldb.close()
+
+
 def display_diff(x, y):
     s = ("", 0)
     if str.strip(x).upper() != str.strip(y).upper():
@@ -465,9 +564,6 @@ def run_membership(param):
     flds = MembershipFields()
     compare_fields = flds.get_fieldnames(merge_data.process_state)
 
-    # print("Merge\n", merge_data.__dict__)
-    # print("Source\n", source_data.__dict__)
-    # return
 
     sqldb = sqlite3.connect('source_data.db')
     sqldb.row_factory = sqlite3.Row
@@ -679,6 +775,64 @@ def run_csp(param):
     sqldb.close()
 
 
+def run_reassignment(param):
+    fbr = FBRProcess(param)
+    fbr.get_source_dirs()
+    fbr.get_source_files()
+    fbr.get_sample_size()
+    fbr.get_sample_records()
+    fbr.import_data()
+
+    if not os.path.isdir(os.path.join(fbr.merge_source_dir, 'data check')):
+        os.mkdir(os.path.join(fbr.merge_source_dir, 'data check'))
+
+    sqldb = sqlite3.connect('source_data.db')
+    sqldb.row_factory = sqlite3.Row
+    c = sqldb.cursor()
+
+    with open(os.path.join(fbr.merge_source_dir, 'data check',
+                           "{0}_DATA CHECK REPORT.txt".format(fbr.merge_source_file[:-4])), 'w+') as s:
+
+        # Compare merge file --> source file
+        s.write("Comparing: {2}\\{0} -->\n{4:>11}{3}\\{1}\n".format(fbr.merge_source_file,
+                                                                    fbr.data_source_file,
+                                                                    os.path.abspath(fbr.merge_source_dir),
+                                                                    os.path.abspath(fbr.data_source_dir),
+                                                                    " "))
+        errors = 0
+
+        with open(os.path.join(fbr.merge_source_dir, fbr.merge_source_file), 'r') as f:
+            csvr = csv.DictReader(f, delimiter='\t')
+            for n, line in enumerate(csvr, 1):
+                if n in fbr.sample_records:
+                    match_find = (("{0}{1}".format(line['First'], line['Last'])).upper())
+                    c.execute("SELECT * FROM source_data WHERE first||last=?;", (match_find,))
+
+                    try:
+                        match_result = c.fetchone()
+                        s.write("\n")
+                        for field in fbr.compare_fields:
+                            match_eval = display_diff(line[field], match_result[field])
+                            s.write("\t{3}: {0} --> {1} {2}\n".format(line[field],
+                                                                      match_result[field],
+                                                                      match_eval[0],
+                                                                      field))
+                            if match_eval[1]:
+                                # print('\t{1}: ID {0} ERROR'.format(
+                                #         line['ID'], fbr.merge_source_file))
+                                errors += 1
+                    except TypeError:
+                        s.write('\t**** NO MATCH FOR ID: {0} ****\n'.format(line['ID']))
+                        for field in fbr.compare_fields:
+                            s.write("\t{1}: {0}\n*****     *****\n".format(line[field], field))
+                        errors += 1
+            s.write("\n")
+
+        s.write("Processing Finished: {0} total errors".format(errors))
+
+        sqldb.close()
+
+
 def instructions():
     print("This will data check jobs for FB Membership, WM HCM, WM CSP, and WM Pregnancy\n\n"
           "For FB Membership, place this file:\n\t"
@@ -689,6 +843,8 @@ def instructions():
           "WM Pregnancy In-Sourcing\\##### WM [Mon] [YYYY] Preg In-Sourcing\\[*here*]\\\n\n"
           "For WM CSP, place this file:\n\t"
           "WM CSP\\##### WM [Mon] [YYYY] CSP\\[*here*]\\\n\n"
+          "For FB Permanent Reassignment, place this file:\n\t"
+          "FB Permanent Reassignment\\##### FB [Mon] [YYYY] Perm Reassignment\\[*here*]\\\n\n"
           "Execute, follow on screen instructions\nAudit reports are saved in "
           "the same directory as the merge files in .\\data\\\n\n")
 
@@ -696,11 +852,11 @@ def instructions():
 def questions():
 
     parameters = {}
-    # parameters = {'process': 3, 'week_number': 1}
+    # parameters = {'process': 4, 'week_number': 1}
 
     try:
-        qry = int(input("Processing job FB Membership (0), WM HCM (1), WM Pregnancy (2), CSP (3): "))
-        if qry not in [0, 1, 2, 3]:
+        qry = int(input("Processing job FB Membership (0), WM HCM (1), WM Pregnancy (2), CSP (3), FB Reassignment (4): "))
+        if qry not in [0, 1, 2, 3, 4]:
             raise ValueError
         else:
             parameters['process'] = qry
@@ -737,6 +893,11 @@ def questions():
             csp_qry = int(input("Week # (numeric)? "))
             parameters['week_number'] = csp_qry
 
+        # FB Permanent Reassignment
+        if qry == 4:
+            fbpr_qry = int(input("Week # (numeric)? "))
+            parameters['week_number'] = fbpr_qry
+
     except ValueError:
         print("Invalid response, cancelling")
         time.sleep(4)
@@ -750,11 +911,14 @@ def questions():
         run_pregnancy(parameters)
     if parameters['process'] == 3:
         run_csp(parameters)
+    if parameters['process'] == 4:
+        run_reassignment(parameters)
 
     print("Processing Completed for {0}".format(['FB Membership',
                                                  'WM HCM',
                                                  'WM Pregnancy',
-                                                 'CSP'][parameters['process']]))
+                                                 'CSP',
+                                                 'FB Reassignment'][parameters['process']]))
     time.sleep(2.5)
     os.remove('source_data.db')
     sys.exit()
